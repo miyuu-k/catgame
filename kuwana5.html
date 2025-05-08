@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>サイレントクリーナー ～猫様は寝ている～</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh; /* フォールバック用 */
+            min-height: 100dvh; /* 動的ビューポート高さ */
+            overflow-x: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 420px;
+            min-height: 100vh; /* フォールバック用 */
+            min-height: 100dvh; /* 動的ビューポート高さ */
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header-banner {
+            background-color: #ff4d4d; color: white; text-align: center;
+            padding: 8px; /* 削減 */
+            font-size: 1.1em; /* 少し調整 */
+            font-weight: bold; flex-shrink: 0;
+        }
+        #status-area {
+            padding: 6px 10px; /* 削減 */
+            background-color: #f9f9f9; border-bottom: 1px solid #eee; flex-shrink: 0;
+        }
+        #score-and-timer-container {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 5px; /* 削減 */
+        }
+        #score-label { font-size: 1.2em; font-weight: bold; color: #333; } /* 少し調整 */
+        #score-value { font-size: 1.2em; font-weight: bold; color: #e8491d; }
+        #timer-display { font-size: 1.2em; font-weight: bold; color: #1d7fe8; }
+
+        #cat-area {
+            text-align: center; padding: 0; /* 削減 */
+            position: relative; flex-shrink: 0;
+        }
+        #cat-tower {
+            width: 140px; height: 190px; /* 削減 */
+            margin: 5px auto; position: relative;
+        }
+        /* 猫タワー内部要素のサイズと位置を微調整 */
+        #cat-tower-base { width: 100%; height: 12px; background-color: #d2b48c; position: absolute; bottom: 0; border-radius: 3px;}
+        .cat-tower-platform { background-color: #f5f5dc; border: 1px solid #d2b48c; border-radius: 3px; position: absolute;}
+        #platform1 { width: 55px; height: 12px; top: 0; left: 50%; transform: translateX(-50%); }
+        #platform2 { width: 90px; height: 12px; top: 68px; left: 50%; transform: translateX(-50%); } /* top調整 */
+        #platform3 { width: 100%; height: 12px; top: 135px; left: 0; } /* top調整 */
+        .cat-tower-post { background-color: #d2b48c; position: absolute; background-image: repeating-linear-gradient(45deg, #c19a6b, #c19a6b 3px, #d2b48c 3px, #d2b48c 6px); }
+        #post1 { width: 16px; height: 56px; top: 12px; left: 50%; transform: translateX(-50%);} /* size, top調整 */
+        #post2a { width: 10px; height: 55px; top: 80px; left: 12px; } /* size, top調整 */
+        #post2b { width: 10px; height: 55px; top: 80px; right: 12px; } /* size, top調整 */
+        #cat-house { width: 55px; height: 45px; background-color: #f5f5dc; border: 1px solid #d2b48c; position: absolute; top: 90px; left: 50%; transform: translateX(-50%); border-radius: 3px;} /* size, top調整 */
+        #cat-house-entrance { width: 22px; height: 22px; background-color: #8b4513; border-radius: 50% 50% 0 0 / 80% 80% 0 0; position: absolute; top: 13px; left: 50%; transform: translateX(-50%);} /* size, top調整 */
+        
+        #cat-on-tower {
+            position: absolute; top: -16px; left: 50%; transform: translateX(-50%); width: 55px; height: 36px; /* 削減 */
+            background-color: #f0f0f0; border-radius: 50% 50% 20% 20% / 60% 60% 40% 40%;
+            display: flex; justify-content: center; align-items: center; font-size: 0.65em; border: 1px solid #ccc;
+        }
+        #cat-face { font-size: 0.45em; position: absolute; top: 11px; } /* 少し調整 */
+        #cat-ears { position: absolute; top: -3px; width: 100%; }
+        .cat-ear { width: 10px; height: 10px; background-color: #e0e0e0; border: 1px solid #ccc; position: absolute; top: 0; transform: rotate(-45deg); border-radius: 50% 0;}
+        #ear-left { left: 7px; }
+        #ear-right { right: 7px; transform: rotate(45deg); border-radius: 0 50% 0 0; }
+        #cat-state-bubble { position: absolute; top: -10px; left: 50%; transform: translateX(22px); background-color: rgba(255,255,255,0.9); padding: 1px 3px; border-radius: 3px; font-size: 0.65em; box-shadow: 1px 1px 1px rgba(0,0,0,0.1); }
+
+        #sleepiness-gauge-container { width: 90%; margin: 3px auto 0; text-align: center; } /* margin削減 */
+        #sleepiness-gauge-label { font-size: 0.75em; color: #555; margin-bottom: 1px; }
+        #sleepiness-gauge-bar-bg { width: 100%; height: 16px; background-color: #e0e0e0; border-radius: 8px; overflow: hidden; border: 1px solid #ccc;}
+        #sleepiness-gauge-bar-fill { width: 100%; height: 100%; background-color: #4caf50; border-radius: 8px; transition: width 0.2s ease-in-out, background-color 0.2s ease-in-out;} /* transition短縮 */
+        #sleepiness-gauge-value { font-size: 0.65em; color: #333; }
+
+        #cleaning-area {
+            flex-grow: 1; position: relative; background-color: #faf3e0;
+            padding: 8px; /* 削減 */
+            overflow-y: auto;
+        }
+        .cleanable-item { position: absolute; cursor: pointer; user-select: none; transition: transform 0.15s ease, opacity 0.2s ease;} /* transition短縮 */
+        .cleanable-item:hover { transform: scale(1.08); }
+        .dust { width: 32px; height: 32px; background-color: rgba(180, 180, 180, 0.7); border-radius: 50%; }
+        .dust::before, .dust::after { content: ''; position: absolute; background-color: rgba(180, 180, 180, 0.7); border-radius: 50%;}
+        .dust::before { width: 18px; height: 18px; top: -7px; left: 3px; }
+        .dust::after { width: 22px; height: 22px; top: 3px; left: -10px; }
+        .trash { width: 22px; height: 32px; background-color: #2e8b57; border-radius: 3px; transform: perspective(35px) rotateX(7deg) scaleY(0.9); border-top: 1px solid #66cdaa; box-shadow: 0 1px 1.5px rgba(0,0,0,0.3); }
+        #item-feedback { position: absolute; font-size: 1.7em; color: red; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.2s ease;}
+
+        #info-counts {
+            display: flex; justify-content: space-around; padding: 4px; /* 削減 */
+            font-size: 0.75em; /* 削減 */
+            background-color: #f9f9f9; border-top: 1px solid #eee; flex-shrink: 0;
+        }
+        #trash-can-icon {
+            position: absolute;
+            bottom: calc(68px + 8px); /* ツールパネルの高さ(60+8) + マージン */
+            right: 8px; font-size: 2em; opacity: 0.5; pointer-events: none;
+        }
+        #tools-panel {
+            display: flex; justify-content: space-around; padding: 8px; /* 削減 */
+            background-color: #e0e0e0; border-top: 1.5px solid #ccc; flex-shrink: 0;
+        }
+        .tool-icon {
+            width: 60px; height: 60px; /* 削減 */
+            border: 1.5px solid #aaa; border-radius: 6px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; background-color: #f8f8f8;
+        }
+        .tool-icon.selected { border-color: #ff4d4d; transform: scale(1.03); box-shadow: 0 0 5px rgba(255, 77, 77, 0.5);}
+        .tool-icon .icon-image { width: 25px; height: 25px; margin-bottom: 3px; } /* 削減 */
+        .tool-icon .icon-name { font-size: 0.6em; } /* 削減 */
+
+        #duster-icon-img { display: flex; flex-direction: column; align-items: center; }
+        #duster-icon-img .handle { width: 3px; height: 11px; background: #8B4513; }
+        #duster-icon-img .feathers { width: 20px; height: 11px; background: #DAA520; border-radius: 50% 50% 0 0; }
+        #hand-icon-img { width: 23px; height: 23px; background: #FFDBAC; border-radius: 3px; position: relative;}
+        #hand-icon-img span { position: absolute; background: #FFDBAC; border: 1px solid #E4C59E; border-radius: 2px; }
+        #hand-icon-img .finger1 { width: 3.5px; height: 8px; top: -6px; left: 1px; }
+        #hand-icon-img .finger2 { width: 3.5px; height: 9px; top: -7.5px; left: 6px; }
+        #hand-icon-img .finger3 { width: 3.5px; height: 8px; top: -6px; left: 11px; }
+        #hand-icon-img .finger4 { width: 3.5px; height: 6px; top: -4.5px; left: 16px; }
+        #hand-icon-img .thumb { width: 6px; height: 3.5px; top: 1px; left: -5px; transform: rotate(-30deg); }
+        #vacuum-icon-img { display: flex; align-items: flex-end; }
+        #vacuum-icon-img .body { width: 16px; height: 11px; background: #F44336; border-radius: 2px; }
+        #vacuum-icon-img .hose { width: 3.5px; height: 8px; background: #757575; margin-left: -1px; border-radius: 1px 1px 0 0;}
+        #vacuum-icon-img .nozzle { width: 8px; height: 3.5px; background: #424242; margin-bottom: 7px; margin-left: -1px; }
+
+        #message-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.75); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; z-index: 100; }
+        #message-overlay.hidden { display: none; }
+        #message-content { font-size: 1.7em; margin-bottom: 15px; padding: 0 15px; } /* 少し調整 */
+        #restart-button { padding: 10px 20px; font-size: 0.9em; border: none; border-radius: 5px; background-color: #ff4d4d; color: white; cursor: pointer; } /* 少し調整 */
+
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="header-banner">サイレントクリーナー ～猫様は寝ている～</div>
+        
+        <div id="status-area">
+            <div id="score-and-timer-container">
+                <div><span id="score-label">スコア: </span><span id="score-value">0</span></div>
+                <div><span id="timer-display">時間: 30</span></div>
+            </div>
+            <div id="sleepiness-gauge-container">
+                <div id="sleepiness-gauge-label">猫の寝てる度: <span id="sleepiness-gauge-value">100</span>/100</div>
+                <div id="sleepiness-gauge-bar-bg">
+                    <div id="sleepiness-gauge-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="cat-area">
+             <div id="cat-tower">
+                <div id="cat-tower-base"></div>
+                <div class="cat-tower-platform" id="platform1"></div>
+                <div class="cat-tower-post" id="post1"></div>
+                <div class="cat-tower-platform" id="platform2"></div>
+                 <div id="cat-house"><div id="cat-house-entrance"></div></div>
+                <div class="cat-tower-post" id="post2a"></div>
+                <div class="cat-tower-post" id="post2b"></div>
+                <div class="cat-tower-platform" id="platform3"></div>
+                <div id="cat-on-tower">
+                    <div id="cat-ears"><div class="cat-ear" id="ear-left"></div><div class="cat-ear" id="ear-right"></div></div>
+                    <span id="cat-face">( - ω - )</span>
+                    <span id="cat-state-bubble">zzz</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="cleaning-area">
+            <div id="item-feedback">×</div>
+        </div>
+
+        <div id="info-counts">
+            <div>掃除したホコリ: <span id="cleaned-dust-count">0</span></div>
+            <div>掃除したゴミ: <span id="cleaned-trash-count">0</span></div>
+        </div>
+
+        <div id="trash-can-icon">🗑️</div>
+
+        <div id="tools-panel">
+            <div class="tool-icon" id="tool-duster" data-tool="duster">
+                <div class="icon-image" id="duster-icon-img">
+                    <div class="feathers"></div><div class="handle"></div>
+                </div>
+                <span class="icon-name">ふわふわハタキ</span>
+            </div>
+            <div class="tool-icon" id="tool-hand" data-tool="hand">
+                <div class="icon-image" id="hand-icon-img">
+                    <span class="finger1"></span><span class="finger2"></span><span class="finger3"></span><span class="finger4"></span><span class="thumb"></span>
+                </div>
+                <span class="icon-name">そーっと手拾い</span>
+            </div>
+            <div class="tool-icon" id="tool-vacuum" data-tool="vacuum">
+                <div class="icon-image" id="vacuum-icon-img">
+                     <div class="nozzle"></div><div class="hose"></div><div class="body"></div>
+                </div>
+                <span class="icon-name">静音掃除機</span>
+            </div>
+        </div>
+
+        <div id="message-overlay" class="hidden">
+            <div id="message-content"></div>
+            <button id="restart-button">もう一度遊ぶ</button>
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('game-container');
+        const scoreValueEl = document.getElementById('score-value');
+        const timerDisplayEl = document.getElementById('timer-display');
+        const catStateBubbleEl = document.getElementById('cat-state-bubble');
+        const catFaceEl = document.getElementById('cat-face');
+        const sleepinessGaugeFillEl = document.getElementById('sleepiness-gauge-bar-fill');
+        const sleepinessGaugeValueEl = document.getElementById('sleepiness-gauge-value');
+        
+        const cleaningAreaEl = document.getElementById('cleaning-area');
+        const cleanedDustCountEl = document.getElementById('cleaned-dust-count');
+        const cleanedTrashCountEl = document.getElementById('cleaned-trash-count');
+        const toolsPanelEl = document.getElementById('tools-panel');
+        const toolIcons = document.querySelectorAll('.tool-icon');
+        const messageOverlayEl = document.getElementById('message-overlay');
+        const messageContentEl = document.getElementById('message-content');
+        const restartButtonEl = document.getElementById('restart-button');
+        const trashCanIconEl = document.getElementById('trash-can-icon');
+        const itemFeedbackEl = document.getElementById('item-feedback');
+
+        const MAX_SLEEPINESS = 100;
+        const SLEEPINESS_UPDATE_INTERVAL = 500; // 更新間隔をさらに短縮 (前: 600ms)
+        const TIME_LIMIT = 30; 
+
+        const TOOLS = {
+            duster: { name: 'ふわふわハタキ', noise: 4, targets: ['dust'], score: 10 }, // noise微減
+            hand:   { name: 'そーっと手拾い', noise: 12, targets: ['trash'], score: 20 }, // noise微減
+            vacuum: { name: '静音掃除機', noise: 25, targets: ['dust', 'trash'], scoreMulti: {dust: 10, trash: 20} } // noise微減
+        };
+
+        let catSleepiness = MAX_SLEEPINESS;
+        let score = 0;
+        let gameTimer = TIME_LIMIT;
+        let cleanedDust = 0;
+        let cleanedTrash = 0;
+        let selectedTool = null;
+        let sleepinessUpdateIntervalId = null;
+        let timerIntervalId = null;
+        let isGameOver = false;
+
+        const MAX_ITEMS_ON_SCREEN = 7; 
+        let currentItemCount = 0;
+        const ITEM_SPAWN_INTERVAL = 1600; // アイテム出現間隔 (前: 1700ms)
+        let itemSpawnIntervalId = null;
+
+        function initGame() {
+            catSleepiness = MAX_SLEEPINESS;
+            score = 0;
+            gameTimer = TIME_LIMIT;
+            cleanedDust = 0;
+            cleanedTrash = 0;
+            selectedTool = null;
+            isGameOver = false;
+            currentItemCount = 0;
+            
+            messageOverlayEl.classList.add('hidden');
+            cleaningAreaEl.innerHTML = ''; 
+            cleaningAreaEl.appendChild(itemFeedbackEl);
+
+            spawnInitialItems(2, 1);
+            
+            updateStatusDisplays();
+            updateGaugeDisplay();
+            updateCatVisual();
+            updateTimerDisplay();
+
+            toolIcons.forEach(icon => icon.classList.remove('selected'));
+            
+            if (sleepinessUpdateIntervalId) clearInterval(sleepinessUpdateIntervalId);
+            sleepinessUpdateIntervalId = setInterval(updateCatSleepiness, SLEEPINESS_UPDATE_INTERVAL);
+
+            if (timerIntervalId) clearInterval(timerIntervalId);
+            timerIntervalId = setInterval(runTimer, 1000);
+
+            if (itemSpawnIntervalId) clearInterval(itemSpawnIntervalId);
+            itemSpawnIntervalId = setInterval(trySpawnNewItem, ITEM_SPAWN_INTERVAL);
+        }
+
+        function spawnInitialItems(dust, trash) {
+            for(let i=0; i<dust; i++) spawnSingleItem('dust');
+            for(let i=0; i<trash; i++) spawnSingleItem('trash');
+        }
+
+        function trySpawnNewItem() {
+            if (isGameOver || currentItemCount >= MAX_ITEMS_ON_SCREEN) return;
+            
+            const itemType = Math.random() < 0.55 ? 'dust' : 'trash'; // 少しゴミの比率を上げる
+            spawnSingleItem(itemType);
+        }
+
+        function spawnSingleItem(type) {
+            if (currentItemCount >= MAX_ITEMS_ON_SCREEN) return;
+
+            const itemEl = document.createElement('div');
+            itemEl.classList.add('cleanable-item', type);
+            itemEl.dataset.type = type;
+
+            const areaRect = cleaningAreaEl.getBoundingClientRect();
+            const cleaningAreaActualHeight = cleaningAreaEl.clientHeight;
+
+            const itemSize = (type === 'dust' ? 32 : 32); 
+            const maxY = cleaningAreaActualHeight - itemSize - 8; // margin調整
+
+            if (maxY < 0) return; 
+
+            let x, y, attempts = 0;
+            const maxAttempts = 15; // 試行回数調整
+            do {
+                x = Math.random() * (areaRect.width - itemSize - 16) + 8; // margin調整
+                y = Math.random() * maxY + 4; // margin調整
+                itemEl.style.left = `${x}px`;
+                itemEl.style.top = `${y}px`;
+                attempts++;
+            } while (checkOverlap(itemEl) && attempts < maxAttempts);
+            
+            if (attempts >= maxAttempts && checkOverlap(itemEl)) {
+                 return;
+            }
+
+            itemEl.addEventListener('click', () => handleItemClick(itemEl));
+            cleaningAreaEl.appendChild(itemEl);
+            currentItemCount++;
+        }
+        
+        function checkOverlap(newItem) {
+            const items = cleaningAreaEl.querySelectorAll('.cleanable-item');
+            if (!items.length) return false;
+            const newItemRect = newItem.getBoundingClientRect();
+            for (const item of items) {
+                if (item === newItem) continue;
+                const itemRect = item.getBoundingClientRect();
+                const margin = 8; // margin調整
+                const overlap = !(newItemRect.right < itemRect.left - margin || 
+                                newItemRect.left > itemRect.right + margin || 
+                                newItemRect.bottom < itemRect.top - margin || 
+                                newItemRect.top > itemRect.bottom + margin);
+                if (overlap) return true;
+            }
+            return false;
+        }
+
+        function handleItemClick(itemEl) {
+            if (isGameOver || !selectedTool) return;
+
+            const itemType = itemEl.dataset.type;
+            const toolData = TOOLS[selectedTool];
+
+            if (toolData.targets.includes(itemType)) {
+                decreaseGauge(toolData.noise);
+                
+                let itemScore = 0;
+                if (selectedTool === 'vacuum') {
+                    itemScore = toolData.scoreMulti[itemType];
+                } else {
+                    itemScore = toolData.score;
+                }
+                score += itemScore;
+
+                if (itemType === 'dust') {
+                    cleanedDust++;
+                } else if (itemType === 'trash') {
+                    cleanedTrash++;
+                }
+                
+                itemEl.style.pointerEvents = 'none'; 
+                if (itemType === 'trash') {
+                    const trashCanRect = trashCanIconEl.getBoundingClientRect();
+                    const itemRect = itemEl.getBoundingClientRect();
+                    const gameAreaRect = gameContainer.getBoundingClientRect();
+
+                    const targetX = trashCanRect.left - itemRect.left + (trashCanRect.width / 2) - (itemRect.width / 2) - gameAreaRect.left + cleaningAreaEl.scrollLeft;
+                    const targetY = trashCanRect.top - itemRect.top + (trashCanRect.height / 2) - (itemRect.height / 2) - gameAreaRect.top + cleaningAreaEl.scrollTop;
+                    
+                    itemEl.style.transition = 'transform 0.4s ease-in-out, opacity 0.4s ease-in-out';
+                    itemEl.style.transform = `translate(${targetX}px, ${targetY}px) scale(0.1)`;
+                    itemEl.style.opacity = '0';
+                } else { 
+                    itemEl.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+                    itemEl.style.transform = 'scale(0)';
+                    itemEl.style.opacity = '0';
+                }
+
+                setTimeout(() => {
+                    itemEl.remove();
+                    currentItemCount--;
+                }, 400);
+                
+                updateStatusDisplays();
+
+            } else {
+                showFeedbackCross(itemEl);
+            }
+        }
+
+        function showFeedbackCross(targetItem) {
+            const itemRect = targetItem.getBoundingClientRect();
+            const cleaningAreaRect = cleaningAreaEl.getBoundingClientRect();
+            itemFeedbackEl.style.left = `${itemRect.left - cleaningAreaRect.left + itemRect.width / 2 - 8 + cleaningAreaEl.scrollLeft}px`;
+            itemFeedbackEl.style.top = `${itemRect.top - cleaningAreaRect.top + itemRect.height / 2 - 15 + cleaningAreaEl.scrollTop}px`;
+            itemFeedbackEl.style.opacity = '1';
+            setTimeout(() => {
+                itemFeedbackEl.style.opacity = '0';
+            }, 400);
+        }
+
+        function decreaseGauge(amount) {
+            if (isGameOver) return;
+            catSleepiness = Math.max(0, catSleepiness - amount);
+            updateGaugeDisplay();
+            updateCatVisual();
+            if (catSleepiness <= 0) { // <=0 で確実に
+                triggerGameOver("cat_woke_up");
+            }
+        }
+
+        function updateCatSleepiness() {
+            if (isGameOver) return;
+
+            let recoveryAmount = 0;
+            const randAction = Math.random(); 
+
+            // ゲージ残量に応じた基本回復量設定
+            if (catSleepiness >= 65) {  // 閾値を少し下げる
+                recoveryAmount = 8.0; // さらに早く回復 (前: 5.0)
+            } else if (catSleepiness >= 25) { // 閾値を少し下げる
+                recoveryAmount = 5.0; // 回復速度アップ (前: 3.0)
+            } else { 
+                recoveryAmount = 3.0; // 低ゲージでもかなり回復 (前: 2.0)
+            }
+
+            // 75%の確率で回復行動 (前: 70%)
+            if (randAction < 0.75) { 
+                catSleepiness = Math.min(MAX_SLEEPINESS, catSleepiness + recoveryAmount);
+            } 
+            // 10%の確率で少し減少 (猫が起きかける) - 0.75以上0.85未満 (前: 15%)
+            else if (randAction < 0.85) { 
+                let decreaseAmount = 0.5; // 基本の減少量をさらに少なく (前: 1)
+                if (catSleepiness < 25) { 
+                    decreaseAmount = 1; // 低ゲージの時は少し起きやすい (前: 1.5)
+                } else if (catSleepiness >= 65) { 
+                    decreaseAmount = 0.2; // 高ゲージの時はごくわずか (前: 0.5)
+                }
+                catSleepiness = Math.max(0, catSleepiness - decreaseAmount);
+                if (catSleepiness <= 0 && !isGameOver) { 
+                    triggerGameOver("cat_woke_up");
+                }
+            }
+            // 残り15% (0.85以上)は何もしない
+
+            updateGaugeDisplay();
+            updateCatVisual();
+        }
+        
+        function updateGaugeDisplay() {
+            const percentage = (catSleepiness / MAX_SLEEPINESS) * 100;
+            sleepinessGaugeFillEl.style.width = `${percentage}%`;
+            sleepinessGaugeValueEl.textContent = Math.round(catSleepiness);
+
+            if (percentage > 55) sleepinessGaugeFillEl.style.backgroundColor = '#4caf50'; // 閾値調整
+            else if (percentage > 20) sleepinessGaugeFillEl.style.backgroundColor = '#ffc107'; // 閾値調整
+            else sleepinessGaugeFillEl.style.backgroundColor = '#f44336'; 
+        }
+
+        function updateCatVisual() {
+            if (catSleepiness > 90) { // 閾値調整
+                 catStateBubbleEl.textContent = '超爆睡zzZZ'; catFaceEl.textContent = '( - . - ) zzZ';
+            } else if (catSleepiness > 70) {
+                catStateBubbleEl.textContent = 'zzz'; catFaceEl.textContent = '( - ω - )';
+            } else if (catSleepiness > 35) { // 閾値調整
+                catStateBubbleEl.textContent = 'んん...'; catFaceEl.textContent = '( ¬ ω ¬ )';
+            } else if (catSleepiness > 5) { // 閾値調整
+                catStateBubbleEl.textContent = 'むにゃ...'; catFaceEl.textContent = '( ò ω ó )';
+            } else if (catSleepiness > 0) {
+                catStateBubbleEl.textContent = '！'; catFaceEl.textContent = '( O ω O )';
+            } else {
+                catStateBubbleEl.textContent = 'ニャッ！'; catFaceEl.textContent = '(ÒДÓױ)';
+            }
+        }
+
+        function updateStatusDisplays() {
+            scoreValueEl.textContent = score;
+            cleanedDustCountEl.textContent = cleanedDust;
+            cleanedTrashCountEl.textContent = cleanedTrash;
+        }
+
+        function runTimer() {
+            if (isGameOver) return;
+            gameTimer--;
+            updateTimerDisplay();
+            if (gameTimer <= 0) {
+                triggerGameOver("time_up");
+            }
+        }
+        function updateTimerDisplay() {
+            timerDisplayEl.textContent = `時間: ${gameTimer}`;
+        }
+
+        function triggerGameOver(reason) {
+            if (isGameOver) return;
+            isGameOver = true;
+            clearInterval(sleepinessUpdateIntervalId);
+            clearInterval(timerIntervalId);
+            clearInterval(itemSpawnIntervalId);
+            
+            let message = "";
+            if (reason === "cat_woke_up") {
+                message = `ゲームオーバー...<br>猫が起きちゃった！<br>最終スコア: ${score}`;
+                updateCatVisual(); 
+            } else if (reason === "time_up") {
+                message = `タイムアップ！<br>最終スコア: ${score}`;
+            }
+            messageContentEl.innerHTML = message;
+            messageOverlayEl.classList.remove('hidden');
+        }
+
+        toolsPanelEl.addEventListener('click', (e) => {
+            const toolButton = e.target.closest('.tool-icon');
+            if (!toolButton || isGameOver) return;
+
+            selectedTool = toolButton.dataset.tool;
+            toolIcons.forEach(icon => icon.classList.remove('selected'));
+            toolButton.classList.add('selected');
+        });
+
+        restartButtonEl.addEventListener('click', initGame);
+
+        initGame();
+    </script>
+</body>
+</html>
